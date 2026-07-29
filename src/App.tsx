@@ -39,41 +39,64 @@ export default function App() {
   const [isRunning, setIsRunning] = useState<boolean>(true);
   const [simSpeed, setSimSpeed] = useState<number>(1.0);
   const [currentTimeSec, setCurrentTimeSec] = useState<number>(0);
+  const [isTelemetryExpanded, setIsTelemetryExpanded] = useState<boolean>(false);
 
   // Simulation Outputs
   const [stats, setStats] = useState<SimulationStepStats | null>(null);
   const [explanations, setExplanations] = useState<CalculationStepExplanation[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
 
-  // AI Assistant Modal
+  // AI Assistant & Clear Confirm Modal State
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Mobile Drawer State
   const [mobileDrawer, setMobileDrawer] = useState<"none" | "palette" | "inspector">("none");
 
+  // Clear entire canvas & simulation state
+  const handleClearCanvas = () => {
+    setComponents([]);
+    setWires([]);
+    setSelectedComponentId(null);
+    setSelectedWireId(null);
+    setStats(null);
+    setExplanations([]);
+    setWarnings([]);
+    currentTimeRef.current = 0;
+    setCurrentTimeSec(0);
+    statsRef.current = null;
+    setShowClearConfirm(false);
+  };
+
   // Simulation Loop Tick
   const animFrameRef = useRef<number | null>(null);
   const lastTickTimeRef = useRef<number>(performance.now());
+  const statsRef = useRef<SimulationStepStats | null>(null);
+  const currentTimeRef = useRef<number>(0);
 
   useEffect(() => {
+    lastTickTimeRef.current = performance.now();
     const tick = (now: number) => {
       const deltaSec = (now - lastTickTimeRef.current) / 1000;
       lastTickTimeRef.current = now;
 
       if (isRunning) {
-        const timeStep = deltaSec * simSpeed;
-        const nextTime = currentTimeSec + timeStep;
+        const boundedDelta = Math.min(0.1, deltaSec);
+        const timeStep = boundedDelta * simSpeed;
+
+        const nextTime = currentTimeRef.current + timeStep;
+        currentTimeRef.current = nextTime;
         setCurrentTimeSec(nextTime);
 
-        // Run Nodal Solver
         const result = runCircuitSimulation(
           components,
           wires,
           nextTime,
           timeStep,
-          stats || undefined
+          statsRef.current || undefined
         );
 
+        statsRef.current = result.stats;
         setStats(result.stats);
         setExplanations(result.explanations);
         setWarnings(result.warnings);
@@ -86,7 +109,7 @@ export default function App() {
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [isRunning, simSpeed, currentTimeSec, components, wires, stats]);
+  }, [isRunning, simSpeed, components, wires]);
 
   // Add Component from Palette
   const handleAddComponent = (type: ComponentType) => {
@@ -512,12 +535,12 @@ export default function App() {
           </button>
 
           {/* Speed Selector */}
-          <div className="hidden sm:flex items-center gap-1 text-xs text-slate-400 font-mono">
+          <div className="flex items-center gap-1 text-xs text-slate-400 font-mono">
             <span className="hidden lg:inline">Speed:</span>
             <select
               value={simSpeed}
               onChange={(e) => setSimSpeed(Number(e.target.value))}
-              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 focus:outline-none focus:border-emerald-500 text-xs"
+              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 focus:outline-none focus:border-emerald-500 text-xs font-bold"
             >
               <option value="0.2">0.2x</option>
               <option value="0.5">0.5x</option>
@@ -530,15 +553,12 @@ export default function App() {
           {/* Clear Canvas */}
           <button
             onClick={() => {
-              if (confirm("Clear all components and wires from the canvas?")) {
-                setComponents([]);
-                setWires([]);
-                setSelectedComponentId(null);
-                setSelectedWireId(null);
-              }
+              if (components.length === 0 && wires.length === 0) return;
+              setShowClearConfirm(true);
             }}
-            className="p-1.5 md:p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl border border-slate-800 hover:border-red-500/30 transition-colors cursor-pointer"
-            title="Clear Canvas"
+            disabled={components.length === 0 && wires.length === 0}
+            className="p-1.5 md:p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl border border-slate-800 hover:border-red-500/30 transition-colors cursor-pointer"
+            title={components.length === 0 && wires.length === 0 ? "Canvas is empty" : "Clear All Components & Wires"}
           >
             <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </button>
@@ -573,6 +593,7 @@ export default function App() {
           selectedWireId={selectedWireId}
           stats={stats}
           isRunning={isRunning}
+          simSpeed={simSpeed}
           onSelectComponent={(id) => {
             setSelectedComponentId(id);
             if (id) setSelectedWireId(null);
@@ -647,52 +668,54 @@ export default function App() {
           </div>
         )}
 
-        {/* MOBILE BOTTOM FLOATING QUICK ACTION BAR (Android Phone Touch Optimized) */}
-        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 p-1.5 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl md:hidden">
-          {/* Add Component Button */}
-          <button
-            onClick={() => setMobileDrawer(mobileDrawer === "palette" ? "none" : "palette")}
-            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-transform"
-          >
-            <Zap className="w-4 h-4 fill-white" />
-            + Add Parts
-          </button>
-
-          {/* Rotate Selected */}
-          {selectedComponentId && (
+        {/* MOBILE BOTTOM FLOATING QUICK ACTION BAR (Hidden when Telemetry Panel is maximized to prevent overlay blocking data table) */}
+        {!isTelemetryExpanded && (
+          <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 p-1.5 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl md:hidden">
+            {/* Add Component Button */}
             <button
-              onClick={() => handleRotateComponent(selectedComponentId)}
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl border border-slate-700 active:scale-95 transition-transform"
-              title="Rotate"
+              onClick={() => setMobileDrawer(mobileDrawer === "palette" ? "none" : "palette")}
+              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-transform"
             >
-              <RotateCcw className="w-4 h-4 -rotate-90" />
+              <Zap className="w-4 h-4 fill-white" />
+              + Add Parts
             </button>
-          )}
 
-          {/* Delete Selected */}
-          {selectedComponentId && (
+            {/* Rotate Selected */}
+            {selectedComponentId && (
+              <button
+                onClick={() => handleRotateComponent(selectedComponentId)}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl border border-slate-700 active:scale-95 transition-transform"
+                title="Rotate"
+              >
+                <RotateCcw className="w-4 h-4 -rotate-90" />
+              </button>
+            )}
+
+            {/* Delete Selected */}
+            {selectedComponentId && (
+              <button
+                onClick={() => handleDeleteComponent(selectedComponentId)}
+                className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl border border-red-500/30 active:scale-95 transition-transform"
+                title="Delete"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Inspector Drawer Toggle */}
             <button
-              onClick={() => handleDeleteComponent(selectedComponentId)}
-              className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl border border-red-500/30 active:scale-95 transition-transform"
-              title="Delete"
+              onClick={() => setMobileDrawer(mobileDrawer === "inspector" ? "none" : "inspector")}
+              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform ${
+                selectedComponentId || selectedWireId
+                  ? "bg-amber-600 text-white shadow-md animate-pulse"
+                  : "bg-slate-800 text-slate-300 border border-slate-700"
+              }`}
             >
-              <Trash2 className="w-4 h-4" />
+              <Sliders className="w-4 h-4" />
+              {selectedComponentId ? "Edit Part" : "Params"}
             </button>
-          )}
-
-          {/* Inspector Drawer Toggle */}
-          <button
-            onClick={() => setMobileDrawer(mobileDrawer === "inspector" ? "none" : "inspector")}
-            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform ${
-              selectedComponentId || selectedWireId
-                ? "bg-amber-600 text-white shadow-md animate-pulse"
-                : "bg-slate-800 text-slate-300 border border-slate-700"
-            }`}
-          >
-            <Sliders className="w-4 h-4" />
-            {selectedComponentId ? "Edit Part" : "Params"}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Telemetry, Formulas & Oscilloscope Panel */}
@@ -702,6 +725,8 @@ export default function App() {
         components={components}
         warnings={warnings}
         isRunning={isRunning}
+        isExpanded={isTelemetryExpanded}
+        onToggleExpand={setIsTelemetryExpanded}
       />
 
       {/* AI Assistant Modal */}
@@ -712,6 +737,37 @@ export default function App() {
           stats={stats}
           onClose={() => setShowAIAssistant(false)}
         />
+      )}
+
+      {/* Clear Canvas Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-red-400">
+              <div className="p-2.5 bg-red-500/10 rounded-xl border border-red-500/20">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <h3 className="font-bold text-base text-slate-100">Clear Canvas?</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to delete all components and wires from the workspace canvas? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearCanvas}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-500/20 transition-all cursor-pointer"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

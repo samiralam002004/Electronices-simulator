@@ -14,6 +14,7 @@ interface CircuitCanvasProps {
   selectedWireId: string | null;
   stats: SimulationStepStats | null;
   isRunning: boolean;
+  simSpeed?: number;
   onSelectComponent: (id: string | null) => void;
   onSelectWire: (id: string | null) => void;
   onUpdateComponentPosition: (id: string, x: number, y: number) => void;
@@ -28,6 +29,7 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
   selectedWireId,
   stats,
   isRunning,
+  simSpeed = 1.0,
   onSelectComponent,
   onSelectWire,
   onUpdateComponentPosition,
@@ -61,14 +63,19 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
   useEffect(() => {
     let animId: number;
     if (isRunning) {
-      const updateAnim = () => {
-        setAnimOffset((prev) => (prev + 0.5) % 40);
+      let lastFrameTime = performance.now();
+      const updateAnim = (now: number) => {
+        const dt = (now - lastFrameTime) / 1000;
+        lastFrameTime = now;
+        // Particle animation advances proportionally with simSpeed
+        const step = Math.max(0.1, Math.min(5.0, 30 * dt * simSpeed));
+        setAnimOffset((prev) => (prev + step) % 40);
         animId = requestAnimationFrame(updateAnim);
       };
       animId = requestAnimationFrame(updateAnim);
     }
     return () => cancelAnimationFrame(animId);
-  }, [isRunning]);
+  }, [isRunning, simSpeed]);
 
   // Touch gesture states for mobile (1-finger drag/pan, 2-finger pinch-to-zoom)
   const [touchDistance, setTouchDistance] = useState<number | null>(null);
@@ -88,6 +95,82 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
     const rx = pin.relX * Math.cos(rad) - pin.relY * Math.sin(rad);
     const ry = pin.relX * Math.sin(rad) + pin.relY * Math.cos(rad);
     return { x: comp.x + rx, y: comp.y + ry };
+  };
+
+  // Helper to construct positive (+) / negative (-) / terminal badges for pins
+  const getPinBadge = (comp: CircuitComponent, pin: ComponentPin, index: number) => {
+    const pinId = (pin.id || "").toLowerCase();
+    const type = comp.type;
+
+    let text = "";
+    let textColor = "#38bdf8";
+    let strokeColor = "#0284c7";
+
+    if (
+      pinId === "pos" ||
+      pinId === "in_pos" ||
+      pinId === "out_pos" ||
+      pinId === "dc_plus" ||
+      pinId === "anode"
+    ) {
+      text = pinId === "anode" ? "+ (A)" : pinId === "in_pos" ? "IN+" : pinId === "out_pos" ? "OUT+" : pinId === "dc_plus" ? "DC+" : "+";
+      textColor = "#f87171"; // Red
+      strokeColor = "#ef4444";
+    } else if (
+      pinId === "neg" ||
+      pinId === "in_neg" ||
+      pinId === "out_neg" ||
+      pinId === "dc_minus" ||
+      pinId === "cathode"
+    ) {
+      text = pinId === "cathode" ? "- (K)" : pinId === "in_neg" ? "IN-" : pinId === "out_neg" ? "OUT-" : pinId === "dc_minus" ? "DC-" : "-";
+      textColor = "#38bdf8"; // Cyan
+      strokeColor = "#0284c7";
+    } else if (pinId === "base") { text = "B"; textColor = "#fbbf24"; strokeColor = "#f59e0b"; }
+    else if (pinId === "collector") { text = "C"; textColor = "#34d399"; strokeColor = "#10b981"; }
+    else if (pinId === "emitter") { text = "E"; textColor = "#f87171"; strokeColor = "#ef4444"; }
+    else if (pinId === "gate") { text = "G"; textColor = "#fbbf24"; strokeColor = "#f59e0b"; }
+    else if (pinId === "drain") { text = "D"; textColor = "#34d399"; strokeColor = "#10b981"; }
+    else if (pinId === "source") { text = "S"; textColor = "#f87171"; strokeColor = "#ef4444"; }
+    else if (pinId === "vin" || pinId === "pri1") { text = pinId === "vin" ? "IN" : "P1"; textColor = "#f87171"; strokeColor = "#ef4444"; }
+    else if (pinId === "vout" || pinId === "sec1") { text = pinId === "vout" ? "OUT" : "S1"; textColor = "#34d399"; strokeColor = "#10b981"; }
+    else if (pinId === "gnd") { text = "GND"; textColor = "#94a3b8"; strokeColor = "#64748b"; }
+    else if (pinId === "pri2") { text = "P2"; textColor = "#38bdf8"; strokeColor = "#0284c7"; }
+    else if (pinId === "sec2") { text = "S2"; textColor = "#c084fc"; strokeColor = "#a855f7"; }
+    else if (pinId === "ac1" || pinId === "ac2") { text = "AC"; textColor = "#38bdf8"; strokeColor = "#0284c7"; }
+    else if (pinId === "red") { text = "R"; textColor = "#f87171"; strokeColor = "#ef4444"; }
+    else if (pinId === "green") { text = "G"; textColor = "#34d399"; strokeColor = "#10b981"; }
+    else if (pinId === "blue") { text = "B"; textColor = "#60a5fa"; strokeColor = "#3b82f6"; }
+    else if (pinId === "p1") {
+      if (type === "voltmeter" || type === "ammeter" || type.includes("electrolytic") || type.includes("tantalum") || type.includes("supercapacitor")) {
+        text = "+";
+        textColor = "#f87171";
+        strokeColor = "#ef4444";
+      } else {
+        text = "+ (1)";
+        textColor = "#fbbf24";
+        strokeColor = "#f59e0b";
+      }
+    } else if (pinId === "p2") {
+      if (type === "voltmeter" || type === "ammeter" || type.includes("electrolytic") || type.includes("tantalum") || type.includes("supercapacitor")) {
+        text = "-";
+        textColor = "#38bdf8";
+        strokeColor = "#0284c7";
+      } else {
+        text = "- (2)";
+        textColor = "#38bdf8";
+        strokeColor = "#0284c7";
+      }
+    } else {
+      text = pin.label || (index === 0 ? "+" : "-");
+    }
+
+    const offsetX = pin.relX === 0 ? 0 : pin.relX < 0 ? -18 : 18;
+    const offsetY = pin.relY === 0 ? (index === 0 ? -15 : 15) : pin.relY < 0 ? -14 : 14;
+
+    const width = text.length > 3 ? 32 : text.length > 1 ? 26 : 20;
+
+    return { text, textColor, strokeColor, offsetX, offsetY, width };
   };
 
   // Distance helper for 2-finger pinch-to-zoom
@@ -516,10 +599,13 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
           </g>
         )}
 
-        {/* Pins */}
-        {comp.pins.map((pin) => {
+        {/* Pins with Terminal Positive/Negative Labels */}
+        {comp.pins.map((pin, index) => {
           const isWiringStart =
             wiringStart?.componentId === comp.id && wiringStart?.pinId === pin.id;
+
+          const badge = getPinBadge(comp, pin, index);
+
           return (
             <g key={pin.id}>
               {/* Invisible large hit circle for easy finger tapping on mobile */}
@@ -537,13 +623,39 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
                 cx={pin.relX}
                 cy={pin.relY}
                 r={6}
-                fill={isWiringStart ? "#38bdf8" : "#10b981"}
+                fill={isWiringStart ? "#38bdf8" : badge.textColor}
                 stroke="#ffffff"
                 strokeWidth={2}
                 onClick={(e) => handlePinClick(e, comp, pin)}
                 onTouchStart={(e) => handlePinClick(e, comp, pin)}
                 className="hover:scale-150 transition-transform cursor-crosshair pointer-events-none"
               />
+              {/* Terminal Pin Badge Label (+ / - / A / K / B / C / E etc.) */}
+              <g
+                transform={`translate(${pin.relX + badge.offsetX}, ${pin.relY + badge.offsetY})`}
+                className="pointer-events-none select-none"
+              >
+                <rect
+                  x={-badge.width / 2}
+                  y={-7.5}
+                  width={badge.width}
+                  height={15}
+                  rx={4}
+                  fill="#030712"
+                  stroke={badge.strokeColor}
+                  strokeWidth={1.2}
+                  opacity={0.95}
+                />
+                <text
+                  x={0}
+                  y={3}
+                  textAnchor="middle"
+                  fill={badge.textColor}
+                  className="text-[9px] font-mono font-black"
+                >
+                  {badge.text}
+                </text>
+              </g>
             </g>
           );
         })}

@@ -1,0 +1,6 @@
+{
+  "name": "ElectroSim - Circuit Simulator & Analyzer",
+  "description": "Interactive electrical and electronics circuit simulator with live current visualization, nodal analysis engine, oscilloscope, real-time metrics, step-by-step formulas, and component editor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -102,7 +102,13 @@ export type ComponentType =
   | "push_button"
   | "fuse"
   | "lamp"
+  | "incandescent_bulb"
   | "dc_motor"
+  | "ac_motor"
+  | "solar_panel"
+  | "buzzer"
+  | "solenoid_valve"
+  | "heater_element"
   // Logic
   | "logic_and"
   | "logic_or"
@@ -145,6 +151,9 @@ export interface ComponentParams {
   efficiency?: number; // Module efficiency %
   nominalVoltage?: number; // Rated voltage for Lamp / Motor
   powerRating?: number; // Watts
+  irradiance?: number; // Solar panel irradiance W/m^2 (default 1000)
+  vOc?: number; // Open circuit voltage
+  iSc?: number; // Short circuit current
   vccPlus?: number; // Opamp positive rail
   vccMinus?: number; // Opamp negative rail
   openResistance?: number; // Ohms for open switch
@@ -156,9 +165,12 @@ export interface ComponentParams {
 export interface ComponentDynamicState {
   isClosed?: boolean; // For switch / push button
   isPressed?: boolean; // For push button
-  brightness?: number; // 0 to 1 for LED / Lamp
+  brightness?: number; // 0 to 1 for LED / Lamp / Bulb
   motorRpm?: number; // Current RPM for motor
   motorAngle?: number; // Angle for visual spinning
+  soundLevelDb?: number; // For Buzzer
+  heatJoulesSec?: number; // For Heater element
+  solenoidPulled?: boolean; // For Solenoid valve
   isBlown?: boolean; // Fuse state
   outputLogicState?: boolean; // For logic gates
   vIn?: number; // Measured input voltage
@@ -214,7 +226,7 @@ export interface CalculationStepExplanation {
   substitutedValues: string;
   result: string;
   description: string;
-  category: "Ohm's Law" | "KVL / KCL" | "AC Reactance" | "Power & Energy" | "Diode/Semiconductor" | "Logic" | "Op-Amp";
+  category: "System & Energy" | "Ohm's Law" | "KVL / KCL" | "AC Reactance" | "Power & Energy" | "Diode/Semiconductor" | "Motors & Loads" | "Transformers & Regulators" | "Logic" | "Op-Amp";
 }
 
 export interface OscilloscopeTracePoint {

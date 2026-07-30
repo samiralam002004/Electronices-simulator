@@ -156,7 +156,12 @@ export default function App() {
       case "push_button":
       case "fuse":
       case "lamp":
+      case "incandescent_bulb":
       case "dc_motor":
+      case "ac_motor":
+      case "buzzer":
+      case "solenoid_valve":
+      case "heater_element":
       case "voltmeter":
       case "ammeter":
       case "sensor_ldr":
@@ -168,6 +173,7 @@ export default function App() {
       case "dc_voltage":
       case "ac_voltage":
       case "battery":
+      case "solar_panel":
         return [
           { id: "pos", relX: 0, relY: -30 },
           { id: "neg", relX: 0, relY: 30 },
@@ -399,7 +405,13 @@ export default function App() {
       case "sensor_ntc": return { resistance: 10000, modelName: "NTC 10K Thermistor" };
       case "fuse": return { currentLimit: 2.0 };
       case "lamp": return { nominalVoltage: 12, powerRating: 10 };
-      case "dc_motor": return { nominalVoltage: 12 };
+      case "incandescent_bulb": return { nominalVoltage: 220, powerRating: 100, resistance: 484, modelName: "220V 100W Filament Lamp" };
+      case "dc_motor": return { nominalVoltage: 12, resistance: 5.0, modelName: "12V DC Gear Motor" };
+      case "ac_motor": return { nominalVoltage: 220, powerRating: 150, resistance: 25, inductance: 0.15, frequency: 50, modelName: "220V Single Phase AC Motor" };
+      case "solar_panel": return { voltage: 18, powerRating: 50, irradiance: 1000, vOc: 21.6, iSc: 3.1, modelName: "18V 50W Monocrystalline PV" };
+      case "buzzer": return { nominalVoltage: 12, frequency: 2400, resistance: 240, modelName: "12V Piezoelectric Buzzer" };
+      case "solenoid_valve": return { nominalVoltage: 12, resistance: 20, inductance: 0.05, modelName: "12V Solenoid Valve Coil" };
+      case "heater_element": return { nominalVoltage: 220, powerRating: 1000, resistance: 48.4, modelName: "220V 1000W Heating Element" };
       default: return {};
     }
   };

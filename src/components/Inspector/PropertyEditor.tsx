@@ -224,6 +224,64 @@ export const PropertyEditor: React.FC<PropertyEditorProps> = ({
             </div>
           )}
 
+          {/* Solar Panel Irradiance */}
+          {comp.type === "solar_panel" && (
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-slate-400 text-[11px]">Sunlight Irradiance (G)</label>
+                  <span className="font-mono text-cyan-400 text-[11px]">
+                    {comp.params.irradiance ?? 1000} W/m²
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="100"
+                  max="1200"
+                  step="50"
+                  value={comp.params.irradiance ?? 1000}
+                  onChange={(e) => handleParamChange("irradiance", Number(e.target.value))}
+                  className="w-full accent-cyan-400 cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="text-slate-400 text-[11px] block mb-1">Rated Voltage (V_oc)</label>
+                <input
+                  type="number"
+                  value={comp.params.voltage ?? 18}
+                  onChange={(e) => handleParamChange("voltage", Number(e.target.value))}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 font-mono text-xs"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Lamps, Motors, Heater Element, Solenoid */}
+          {(comp.type === "incandescent_bulb" || comp.type === "lamp" || comp.type === "dc_motor" || comp.type === "ac_motor" || comp.type === "heater_element" || comp.type === "solenoid_valve" || comp.type === "buzzer") && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-slate-400 text-[11px] block mb-1">Nominal Rated Voltage (V)</label>
+                <input
+                  type="number"
+                  value={comp.params.nominalVoltage ?? 12}
+                  onChange={(e) => handleParamChange("nominalVoltage", Number(e.target.value))}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 font-mono text-xs"
+                />
+              </div>
+              {(comp.type === "incandescent_bulb" || comp.type === "heater_element" || comp.type === "ac_motor") && (
+                <div>
+                  <label className="text-slate-400 text-[11px] block mb-1">Power Rating (Watts)</label>
+                  <input
+                    type="number"
+                    value={comp.params.powerRating ?? 100}
+                    onChange={(e) => handleParamChange("powerRating", Number(e.target.value))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 font-mono text-xs"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Transformers */}
           {(comp.type.includes("transformer")) && (
             <div>

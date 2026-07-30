@@ -566,20 +566,128 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
           </g>
         )}
 
-        {/* DC Motor */}
-        {comp.type === "dc_motor" && (
+        {/* Incandescent Bulb / Lamp */}
+        {(comp.type === "incandescent_bulb" || comp.type === "lamp") && (
           <g>
-            <circle cx={0} cy={0} r={24} fill="#0f172a" stroke="#f59e0b" strokeWidth={3} />
-            <text x={0} y={5} textAnchor="middle" className="text-sm font-bold font-mono fill-amber-400">
-              M
+            {/* Glowing Aura when power is dissipated */}
+            {(comp.state.brightness ?? 0) > 0.05 && (
+              <circle
+                cx={0}
+                cy={0}
+                r={32}
+                fill="#f59e0b"
+                opacity={Math.min(0.85, (comp.state.brightness || 0.5) * 0.9)}
+                className="animate-pulse"
+              />
+            )}
+            {/* Glass Bulb Outline */}
+            <circle cx={0} cy={-2} r={22} fill="#0f172a" stroke="#fbbf24" strokeWidth={2.5} />
+            {/* Filament Loop */}
+            <path
+              d="M -8 10 L -4 -6 C -2 -14 2 -14 4 -6 L 8 10"
+              fill="none"
+              stroke={(comp.state.brightness ?? 0) > 0.1 ? "#fef08a" : "#cbd5e1"}
+              strokeWidth={2}
+            />
+            {/* Terminal Base */}
+            <rect x={-8} y={16} width={16} height={8} fill="#475569" rx={2} />
+            <text x={0} y={-28} textAnchor="middle" className="text-[10px] font-mono fill-amber-400 font-bold">
+              {comp.label}
+            </text>
+            <text x={0} y={35} textAnchor="middle" className="text-[9px] font-mono fill-slate-300">
+              {((comp.state.power || 0) * 1000).toFixed(0)} mW
+            </text>
+          </g>
+        )}
+
+        {/* DC Motor & AC Motor */}
+        {(comp.type === "dc_motor" || comp.type === "ac_motor") && (
+          <g>
+            <circle cx={0} cy={0} r={26} fill="#0f172a" stroke={comp.type === "ac_motor" ? "#38bdf8" : "#f59e0b"} strokeWidth={3} />
+            <text x={0} y={-8} textAnchor="middle" className="text-xs font-bold font-mono fill-slate-200">
+              {comp.type === "ac_motor" ? "AC MOTOR" : "DC MOTOR"}
             </text>
             {/* Spinning Rotor blades */}
             <g transform={`rotate(${comp.state.motorAngle || 0})`}>
-              <line x1={-16} y1={0} x2={16} y2={0} stroke="#f59e0b" strokeWidth={2.5} />
-              <line x1={0} y1={-16} x2={0} y2={16} stroke="#f59e0b" strokeWidth={2.5} />
+              <line x1={-18} y1={0} x2={18} y2={0} stroke={comp.type === "ac_motor" ? "#38bdf8" : "#f59e0b"} strokeWidth={3} />
+              <line x1={0} y1={-18} x2={0} y2={18} stroke={comp.type === "ac_motor" ? "#38bdf8" : "#f59e0b"} strokeWidth={3} />
             </g>
-            <text x={0} y={35} textAnchor="middle" className="text-[9px] font-mono fill-amber-400">
+            <text x={0} y={38} textAnchor="middle" className="text-[9px] font-mono font-bold fill-emerald-400">
               {comp.state.motorRpm || 0} RPM
+            </text>
+          </g>
+        )}
+
+        {/* Solar Panel */}
+        {comp.type === "solar_panel" && (
+          <g>
+            <rect x={-35} y={-25} width={70} height={50} rx={6} fill="#1e1b4b" stroke="#38bdf8" strokeWidth={2.5} />
+            {/* Grid Lines for PV Cells */}
+            <line x1={-12} y1={-25} x2={-12} y2={25} stroke="#312e81" strokeWidth={1.5} />
+            <line x1={12} y1={-25} x2={12} y2={25} stroke="#312e81" strokeWidth={1.5} />
+            <line x1={-35} y1={0} x2={35} y2={0} stroke="#312e81" strokeWidth={1.5} />
+            {/* Sun icon mark */}
+            <circle cx={0} cy={0} r={6} fill="#fbbf24" />
+            <text x={0} y={36} textAnchor="middle" className="text-[9px] font-mono fill-cyan-400 font-bold">
+              PV {comp.params.irradiance ?? 1000} W/m²
+            </text>
+          </g>
+        )}
+
+        {/* Buzzer / Speaker */}
+        {comp.type === "buzzer" && (
+          <g>
+            <circle cx={0} cy={0} r={22} fill="#0f172a" stroke="#ec4899" strokeWidth={3} />
+            {/* Speaker Horn Icon */}
+            <polygon points="-8,-6 -2,-6 6,-12 6,12 -2,6 -8,6" fill="#ec4899" />
+            {/* Sound Wave Waves when active */}
+            {(comp.state.soundLevelDb || 0) > 30 && (
+              <g className="animate-ping">
+                <path d="M 10 -8 C 14 -4 14 4 10 8" fill="none" stroke="#f472b6" strokeWidth={2} />
+                <path d="M 14 -12 C 20 -6 20 6 14 12" fill="none" stroke="#f472b6" strokeWidth={2} />
+              </g>
+            )}
+            <text x={0} y={34} textAnchor="middle" className="text-[9px] font-mono fill-pink-400 font-bold">
+              {(comp.state.soundLevelDb || 0).toFixed(0)} dB
+            </text>
+          </g>
+        )}
+
+        {/* Solenoid Valve Coil */}
+        {comp.type === "solenoid_valve" && (
+          <g>
+            <rect x={-30} y={-20} width={60} height={40} rx={6} fill="#0f172a" stroke="#a855f7" strokeWidth={2.5} />
+            {/* Coil windings */}
+            <path d="M -20 -12 Q -15 12 -10 -12 Q -5 12 0 -12 Q 5 12 10 -12 Q 15 12 20 -12" fill="none" stroke="#d8b4fe" strokeWidth={2} />
+            {/* Armature Plunger */}
+            <rect x={-4} y={-18} width={8} height={36} fill={comp.state.solenoidPulled ? "#22c55e" : "#64748b"} rx={2} />
+            <text x={0} y={32} textAnchor="middle" className="text-[9px] font-mono fill-purple-400 font-bold">
+              {comp.state.solenoidPulled ? "PULLED (ACTIVE)" : "REST"}
+            </text>
+          </g>
+        )}
+
+        {/* Electric Heater Element */}
+        {comp.type === "heater_element" && (
+          <g>
+            <rect x={-35} y={-22} width={70} height={44} rx={8} fill="#0f172a" stroke="#ef4444" strokeWidth={2.5} />
+            {/* Heating Ribbon */}
+            <path
+              d="M -25 0 L -18 -12 L -10 12 L -2 -12 L 6 12 L 14 -12 L 22 0"
+              fill="none"
+              stroke={(comp.state.power || 0) > 0.1 ? "#f97316" : "#64748b"}
+              strokeWidth={3}
+              strokeLinecap="round"
+            />
+            {/* Heat Waves when active */}
+            {(comp.state.power || 0) > 0.1 && (
+              <g className="animate-pulse">
+                <path d="M -15 -18 Q -10 -22 -5 -18" fill="none" stroke="#ef4444" strokeWidth={2} />
+                <path d="M 0 -18 Q 5 -22 10 -18" fill="none" stroke="#ef4444" strokeWidth={2} />
+              </g>
+            )}
+            <text x={0} y={34} textAnchor="middle" className="text-[9px] font-mono fill-orange-400 font-bold">
+              {((comp.state.power || 0) * 0.239).toFixed(1)} cal/s
             </text>
           </g>
         )}
@@ -736,7 +844,9 @@ export const CircuitCanvas: React.FC<CircuitCanvasProps> = ({
             const p2 = getPinAbsolutePos(toComp, toPin);
 
             const isSelected = selectedWireId === wire.id;
-            const wireCurrent = stats?.componentCurrents[wire.fromComponentId] || 0.01;
+            const cFrom = stats?.componentCurrents[wire.fromComponentId] ?? 0;
+            const cTo = stats?.componentCurrents[wire.toComponentId] ?? 0;
+            const wireCurrent = Math.abs(cFrom) >= Math.abs(cTo) ? cFrom : cTo;
 
             return (
               <g key={wire.id} onClick={() => { onSelectWire(wire.id); onSelectComponent(null); }}>

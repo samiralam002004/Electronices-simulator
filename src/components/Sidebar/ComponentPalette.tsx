@@ -14,7 +14,12 @@ import {
   Gauge,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Sun,
+  Volume2,
+  Flame,
+  Wind,
+  Lightbulb
 } from "lucide-react";
 import { ComponentCategory, ComponentType, CircuitPreset } from "../../types/circuit";
 import { CIRCUIT_PRESETS } from "../../simulator/presets";
@@ -37,6 +42,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
   // Sources
   { type: "dc_voltage", label: "DC Voltage Source", category: "sources", description: "Constant direct voltage supply (12V default)", icon: Zap },
   { type: "ac_voltage", label: "220V AC / Signal Generator", category: "sources", description: "Sine, Square, or Triangle AC wave source", icon: Radio },
+  { type: "solar_panel", label: "Solar PV Panel (18V 50W)", category: "sources", description: "Photovoltaic panel generating power from sunlight", icon: Sun },
   { type: "battery", label: "9V / 12V DC Battery", category: "sources", description: "Multi-cell chemical battery supply", icon: Zap },
   { type: "ground", label: "Earth Ground (0V)", category: "sources", description: "Zero-volt reference point for nodal solver", icon: Sliders },
   { type: "clock_source", label: "Digital Clock Pulse Source", category: "sources", description: "Square pulse clock signal for digital logic", icon: Activity },
@@ -122,8 +128,13 @@ const PALETTE_ITEMS: PaletteItem[] = [
   { type: "switch_spst", label: "Toggle Switch (SPST)", category: "switches_loads", description: "Single-pole toggle switch (ON/OFF)", icon: ToggleLeft },
   { type: "push_button", label: "Push Button (NO)", category: "switches_loads", description: "Momentary normally-open tactile push button", icon: ToggleLeft },
   { type: "fuse", label: "Glass Safety Fuse (2A)", category: "switches_loads", description: "Protects circuit; blows when current exceeds limit", icon: Zap },
-  { type: "lamp", label: "12V Incandescent Lamp", category: "switches_loads", description: "Light bulb that glows proportionately with power", icon: Zap },
-  { type: "dc_motor", label: "12V DC Motor", category: "switches_loads", description: "Electric motor with spinning rotor display", icon: Activity },
+  { type: "incandescent_bulb", label: "220V 100W Incandescent Lamp", category: "switches_loads", description: "Filament light bulb glowing with power", icon: Lightbulb },
+  { type: "lamp", label: "12V Indicator Lamp", category: "switches_loads", description: "Low power indicator bulb", icon: Lightbulb },
+  { type: "dc_motor", label: "12V DC Motor / Fan", category: "switches_loads", description: "DC motor with spinning rotor & back-EMF calculation", icon: Activity },
+  { type: "ac_motor", label: "220V AC Induction Motor", category: "switches_loads", description: "AC motor with power factor & inductance", icon: Wind },
+  { type: "buzzer", label: "12V Piezoelectric Buzzer", category: "switches_loads", description: "Audio sounder emitting frequency beep tones", icon: Volume2 },
+  { type: "solenoid_valve", label: "12V Solenoid Valve Coil", category: "switches_loads", description: "Electromechanical actuator coil storing magnetic flux", icon: Layers },
+  { type: "heater_element", label: "220V 1000W Heater Element", category: "switches_loads", description: "Thermal heating coil generating calories & warmth", icon: Flame },
 
   // Logic
   { type: "logic_and", label: "AND Logic Gate (74HC08)", category: "logic", description: "High output when ALL inputs are High", icon: Cpu },
@@ -147,6 +158,8 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [showPresetsModal, setShowPresetsModal] = useState(false);
+  const [presetSearchQuery, setPresetSearchQuery] = useState("");
+  const [presetCategoryFilter, setPresetCategoryFilter] = useState("All");
   const catScrollRef = useRef<HTMLDivElement>(null);
 
   const categories: { id: string; label: string; icon: React.ElementType }[] = [
@@ -327,57 +340,142 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
       </div>
 
       {/* Preset Modal */}
-      {showPresetsModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-xl w-full max-h-[85vh] flex flex-col shadow-2xl">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-emerald-400" />
-                  Sample Circuit Templates
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Select a pre-built circuit template to load into ElectroSim canvas
-                </p>
-              </div>
-              <button
-                onClick={() => setShowPresetsModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-100 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
+      {showPresetsModal && (() => {
+        const presetCategories = ["All", ...Array.from(new Set(CIRCUIT_PRESETS.map((p) => p.category)))];
+        const filteredPresets = CIRCUIT_PRESETS.filter((preset) => {
+          const matchesCategory = presetCategoryFilter === "All" || preset.category === presetCategoryFilter;
+          const q = presetSearchQuery.toLowerCase().trim();
+          const matchesSearch =
+            !q ||
+            preset.title.toLowerCase().includes(q) ||
+            preset.description.toLowerCase().includes(q) ||
+            preset.category.toLowerCase().includes(q);
+          return matchesCategory && matchesSearch;
+        });
 
-            <div className="p-4 overflow-y-auto space-y-3 flex-1">
-              {CIRCUIT_PRESETS.map((preset) => (
-                <div
-                  key={preset.id}
-                  onClick={() => {
-                    onLoadPreset(preset);
-                    setShowPresetsModal(false);
-                  }}
-                  className="p-3.5 bg-slate-800/70 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/60 rounded-xl transition-all cursor-pointer flex items-center justify-between group"
-                >
-                  <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
-                      {preset.category}
+        return (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-2xl w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+              {/* Modal Header */}
+              <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+                <div>
+                  <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-emerald-400" />
+                    Sample Circuit Templates
+                    <span className="bg-emerald-950 text-emerald-400 text-xs px-2 py-0.5 rounded-full border border-emerald-800 font-mono">
+                      {filteredPresets.length} / {CIRCUIT_PRESETS.length}
                     </span>
-                    <h4 className="text-sm font-bold text-slate-100 group-hover:text-emerald-300 mt-1">
-                      {preset.title}
-                    </h4>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {preset.description}
-                    </p>
-                  </div>
-                  <button className="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors whitespace-nowrap ml-4">
-                    Load Circuit
-                  </button>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Search and pick pre-built circuits to instantly load on ElectroSim canvas
+                  </p>
                 </div>
-              ))}
+                <button
+                  onClick={() => setShowPresetsModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Search Bar & Category Filter Chips */}
+              <div className="p-3 border-b border-slate-800 bg-slate-950/80 space-y-2.5">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search presets (e.g., Solar, Motor, 220V Lamp, RC Filter, Op-Amp)..."
+                    value={presetSearchQuery}
+                    onChange={(e) => setPresetSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+                    autoFocus
+                  />
+                  {presetSearchQuery && (
+                    <button
+                      onClick={() => setPresetSearchQuery("")}
+                      className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-200"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Categories */}
+                <div className="flex gap-1.5 overflow-x-auto py-0.5 scrollbar-thin scrollbar-thumb-slate-700">
+                  {presetCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setPresetCategoryFilter(cat)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                        presetCategoryFilter === cat
+                          ? "bg-emerald-600 text-white shadow-sm"
+                          : "bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Presets Grid */}
+              <div className="p-4 overflow-y-auto space-y-3 flex-1 scrollbar-thin scrollbar-thumb-slate-700">
+                {filteredPresets.map((preset) => (
+                  <div
+                    key={preset.id}
+                    onClick={() => {
+                      onLoadPreset(preset);
+                      setShowPresetsModal(false);
+                    }}
+                    className="p-3.5 bg-slate-800/70 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/60 rounded-xl transition-all cursor-pointer flex items-center justify-between group"
+                  >
+                    <div className="pr-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30">
+                          {preset.category}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {preset.components.length} components • {preset.wires.length} wires
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-100 group-hover:text-emerald-300 mt-1">
+                        {preset.title}
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5 leading-snug">
+                        {preset.description}
+                      </p>
+                    </div>
+                    <button className="px-3.5 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors whitespace-nowrap ml-3 shrink-0 shadow-sm">
+                      Load Circuit
+                    </button>
+                  </div>
+                ))}
+
+                {filteredPresets.length === 0 && (
+                  <div className="py-12 text-center text-xs text-slate-400 bg-slate-950/40 rounded-xl border border-slate-800 space-y-2">
+                    <HelpCircle className="w-8 h-8 mx-auto text-slate-500" />
+                    <p className="font-semibold text-slate-300">
+                      No sample circuit templates found for "{presetSearchQuery || presetCategoryFilter}"
+                    </p>
+                    <p className="text-slate-500 text-[11px]">
+                      Try clearing search terms or selecting "All" categories.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setPresetSearchQuery("");
+                        setPresetCategoryFilter("All");
+                      }}
+                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-medium rounded-lg border border-slate-700 mt-2"
+                    >
+                      Reset Filters
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
